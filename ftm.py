@@ -16,6 +16,19 @@ logging.basicConfig(level=logging.INFO)
 # Initialize bot
 app = Client("YouTubeDownloader", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Flask Web Server for Deployment Stability
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "TubeFetch is running! Visit the bot for downloads."
+
+def run_web():
+    flask_app.run(host='0.0.0.0', port=8000)
+
+# Start Flask in a separate thread
+threading.Thread(target=run_web, daemon=True).start()
+
 # Store links to prevent losing them
 youtube_links = {}
 
