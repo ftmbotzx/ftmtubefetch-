@@ -30,6 +30,10 @@ def run_web():
 
 # Start Flask in a separate thread
 threading.Thread(target=run_web, daemon=True).start()
+# for bot to work 24×7
+@flask_app.route('/keepalive')
+def keepalive():
+    return "Running", 200
 
 # Store links to prevent losing them
 youtube_links = {}
