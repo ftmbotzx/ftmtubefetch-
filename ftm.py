@@ -2,22 +2,83 @@ import os
 import logging
 import datetime
 import yt_dlp
-import threading
 from pyrogram import Client, filters
-from flask import Flask
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Required Bot Credentials
 API_ID = int(os.getenv("API_ID", "22141398"))
 API_HASH = os.getenv("API_HASH", "0c8f8bd171e05e42d6f6e5a6f4305389")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8105194942:AAFzL74g4y3EMJdouoVUtRig4SP_1eZk_xs")
 
-# Enable logging
-logging.basicConfig(level=logging.INFO)
+# Log Channel ID (replace with actual channel ID)
+LOGGING_CHANNEL_ID = "-1002613994353" # Your log channel ID (integer, not a username)
 
 # Initialize bot
 app = Client("YouTubeDownloader", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Function to send logs to Telegram channel
+async def send_log(message):
+    try:
+        await app.send_message(chat_id=LOGGING_CHANNEL_ID, text=f"📢 **Log:** {message}")
+    except Exception as e:
+        logging.error(f"Failed to send log: {e}")
+
+# Log bot startup
+@app.on_message(filters.command("start") & filters.private)
+async def start(client, message):
+    user = message.from_user
+    log_message = f"🚀 Bot started by {user.first_name} (@{user.username}) | User ID: {user.id}"
+    await send_log(log_message)
+    await message.reply_text("Hello! Bot is online.")
+
+# Log any command usage
+@app.on_message(filters.command(["help", "about"]) & filters.private)
+async def log_command(client, message):
+    user = message.from_user
+    log_message = f"📝 {user.first_name} (@{user.username}) used {message.text} | User ID: {user.id}"
+    await send_log(log_message)
+
+# Log when a user sends any message
+@app.on_message(filters.text & filters.private)
+async def log_messages(client, message):
+    user = message.from_user
+    log_message = f"📩 Message from {user.first_name} (@{user.username}): {message.text} | User ID: {user.id}"
+    await send_log(log_message)
+
+# Download video, send logs, and send the video to the log channel
+@app.on_message(filters.command("download") & filters.private)
+async def download_video(client, message):
+    user = message.from_user
+    args = message.text.split(" ", 1)
+
+    if len(args) < 2:
+        await message.reply_text("⚠ Please provide a YouTube URL.")
+        return
+
+    download_url = args[1]
+    log_message = f"🎥 {user.first_name} (@{user.username}) started downloading:\n🔗 {download_url} | User ID: {user.id}"
+    await send_log(log_message)
+
+    try:
+        ydl_opts = {
+            'outtmpl': './downloads/%(title)s.%(ext)s',
+            'format': 'bestvideo+bestaudio/best',  # Download best available quality
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(download_url, download=True)
+            video_title = info_dict.get("title", "Unknown Title")
+            file_path = ydl.prepare_filename(info_dict)
+
+            log_message = f"✅ Download completed: '{video_title}' for {user.first_name} (@{user.username})"
+            await send_log(log_message)
+
+            # Send the downloaded video to the log channel
+            await client.send_video(chat_id=LOGGING_CHANNEL_ID, video=file_path, caption=f"🎥 **Downloaded Video:** {video_title}")
+
+    except Exception as e:
+        log_message = f"❌ Download failed for {user.first_name} (@{user.username}): {e}"
+        await send_log(log_message)
+        
 # Flask Web Server for Deployment Stability
 flask_app = Flask(__name__)
 
