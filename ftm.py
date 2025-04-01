@@ -6,7 +6,7 @@ import yt_dlp
 from flask import Flask
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram import Client, filters
-from log import log_bot_start_on_init, log_download_request_on_message
+from log import log_bot_start, log_download_request
 
 # Required Bot Credentials
 API_ID = int(os.getenv("API_ID", "22141398"))
