@@ -6,7 +6,84 @@ import yt_dlp
 from flask import Flask
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram import Client, filters
-from log import log_bot_start, log_download_request
+import pytz
+
+# Setup logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+# Log Channel ID (replace with actual channel ID)
+LOGGING_CHANNEL_ID = "-1002613994353"  # Your log channel ID (integer, not a username)
+
+# Function to send logs to Telegram log channel
+async def send_log_to_channel(app, message):
+    try:
+        await app.send_message(LOGGING_CHANNEL_ID, f"📜 **Bot Log:**\n\n{message}")
+    except Exception as e:
+        logging.error(f"Failed to send log to Telegram: {e}")
+
+# Log bot startup (call this when the bot starts)
+async def log_bot_start(app: Client, bot_name: str, user):
+    tz = pytz.timezone('Asia/Kolkata')
+    now = datetime.datetime.now(tz)
+    start_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
+
+    log_message = f"🚀 **{bot_name} Started by {user.mention}**\n" \
+                  f"🆔 User ID: `{user.id}`\n" \
+                  f"⏰ Time: {start_time} GMT+5:30"
+
+    logging.info(log_message)
+    await send_log_to_channel(app, log_message)
+
+# Log user activity (user requests download)
+async def log_download_request(app: Client, message, video_url):
+    tz = pytz.timezone('Asia/Kolkata')
+    now = datetime.datetime.now(tz)
+    log_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
+
+    log_message = f"🎬 **Download Request**\n" \
+                  f"👤 User: {message.from_user.mention}\n" \
+                  f"🆔 User ID: `{message.from_user.id}`\n" \
+                  f"🔗 URL: {video_url}\n" \
+                  f"📅 Time: {log_time} GMT+5:30"
+
+    logging.info(log_message)
+    await send_log_to_channel(app, log_message)
+
+# Log download completion
+async def log_download_complete(app: Client, message):
+    tz = pytz.timezone('Asia/Kolkata')
+    now = datetime.datetime.now(tz)
+    log_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
+
+    log_message = f"✅ **Download Completed**\n" \
+                  f"👤 User: {message.from_user.mention}\n" \
+                  f"🆔 User ID: `{message.from_user.id}`\n" \
+                  f"📅 Time: {log_time} GMT+5:30"
+
+    logging.info(log_message)
+    await send_log_to_channel(app, log_message)
+
+# Hook to log bot start automatically when the bot starts
+def log_bot_start_on_init(app: Client):
+    @app.on_message(filters.command("start"))
+    async def start_command(client, message):
+        await log_bot_start(app, "Fᴛᴍ TᴜʙᴇFᴇᴛᴄʜ", message.from_user)
+        await message.reply("Hello! I'm **Fᴛᴍ TᴜʙᴇFᴇᴛᴄʜ**. Send a YouTube link to download.")
+
+# Hook to log download requests automatically when a user sends a video URL
+def log_download_request_on_message(app: Client):
+    @app.on_message(filters.text & filters.private)
+    async def download_video(client, message):
+        video_url = message.text.strip()
+        await log_download_request(app, message, video_url)
+        # Simulate download process and respond
+        await message.reply("🔄 Downloading video...")
+        # Simulate sending download completion log
+        await log_download_complete(app, message)
+        await message.reply("✅ Video downloaded successfully!")
 
 # Required Bot Credentials
 API_ID = int(os.getenv("API_ID", "22141398"))
@@ -31,6 +108,7 @@ def run_web():
 
 # Start Flask in a separate thread
 threading.Thread(target=run_web, daemon=True).start()
+
 # for bot to work 24×7
 @flask_app.route('/keepalive')
 def keepalive():
