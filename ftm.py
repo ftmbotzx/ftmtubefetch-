@@ -6,17 +6,18 @@ import yt_dlp
 from flask import Flask
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pyrogram import Client, filters
+from log import log_bot_start_on_init, log_download_request_on_message
 
 # Required Bot Credentials
 API_ID = int(os.getenv("API_ID", "22141398"))
 API_HASH = os.getenv("API_HASH", "0c8f8bd171e05e42d6f6e5a6f4305389")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "8105194942:AAFzL74g4y3EMJdouoVUtRig4SP_1eZk_xs")
 
-# Log Channel ID (replace with actual channel ID)
-LOGGING_CHANNEL_ID = "-1002613994353" # Your log channel ID (integer, not a username)
-
 # Initialize bot
 app = Client("YouTubeDownloader", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+
+log_bot_start_on_init(app)
+log_download_request_on_message(app)
 
 # Flask Web Server for Deployment Stability
 flask_app = Flask(__name__)
