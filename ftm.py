@@ -1,21 +1,28 @@
 import os
 import logging
 import datetime
-import threading
 import yt_dlp
+import threading
+import pytz
+from pyrogram import Client, filters
+from pyrogram import Client, filters
 from flask import Flask
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from pyrogram import Client, filters
-import pytz
+
+# Required Bot Credentials
+API_ID = int(os.getenv("API_ID", "22141398"))
+API_HASH = os.getenv("API_HASH", "0c8f8bd171e05e42d6f6e5a6f4305389")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8105194942:AAFzL74g4y3EMJdouoVUtRig4SP_1eZk_xs")
+
+# Log Channel ID (replace with your actual log channel ID)
+LOGGING_CHANNEL_ID = "-1002613994353"  # Change this if needed
+
 
 # Setup logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
-# Log Channel ID (replace with actual channel ID)
-LOGGING_CHANNEL_ID = "-1002613994353"  # Your log channel ID (integer, not a username)
 
 # Function to send logs to Telegram log channel
 async def send_log_to_channel(app, message):
@@ -24,77 +31,8 @@ async def send_log_to_channel(app, message):
     except Exception as e:
         logging.error(f"Failed to send log to Telegram: {e}")
 
-# Log bot startup (call this when the bot starts)
-async def log_bot_start(app: Client, bot_name: str, user):
-    tz = pytz.timezone('Asia/Kolkata')
-    now = datetime.datetime.now(tz)
-    start_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
-
-    log_message = f"🚀 **{bot_name} Started by {user.mention}**\n" \
-                  f"🆔 User ID: `{user.id}`\n" \
-                  f"⏰ Time: {start_time} GMT+5:30"
-
-    logging.info(log_message)
-    await send_log_to_channel(app, log_message)
-
-# Log user activity (user requests download)
-async def log_download_request(app: Client, message, video_url):
-    tz = pytz.timezone('Asia/Kolkata')
-    now = datetime.datetime.now(tz)
-    log_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
-
-    log_message = f"🎬 **Download Request**\n" \
-                  f"👤 User: {message.from_user.mention}\n" \
-                  f"🆔 User ID: `{message.from_user.id}`\n" \
-                  f"🔗 URL: {video_url}\n" \
-                  f"📅 Time: {log_time} GMT+5:30"
-
-    logging.info(log_message)
-    await send_log_to_channel(app, log_message)
-
-# Log download completion
-async def log_download_complete(app: Client, message):
-    tz = pytz.timezone('Asia/Kolkata')
-    now = datetime.datetime.now(tz)
-    log_time = now.strftime("%Y-%m-%d %H:%M:%S %p")
-
-    log_message = f"✅ **Download Completed**\n" \
-                  f"👤 User: {message.from_user.mention}\n" \
-                  f"🆔 User ID: `{message.from_user.id}`\n" \
-                  f"📅 Time: {log_time} GMT+5:30"
-
-    logging.info(log_message)
-    await send_log_to_channel(app, log_message)
-
-# Hook to log bot start automatically when the bot starts
-def log_bot_start_on_init(app: Client):
-    @app.on_message(filters.command("start"))
-    async def start_command(client, message):
-        await log_bot_start(app, "Fᴛᴍ TᴜʙᴇFᴇᴛᴄʜ", message.from_user)
-        await message.reply("Hello! I'm **Fᴛᴍ TᴜʙᴇFᴇᴛᴄʜ**. Send a YouTube link to download.")
-
-# Hook to log download requests automatically when a user sends a video URL
-def log_download_request_on_message(app: Client):
-    @app.on_message(filters.text & filters.private)
-    async def download_video(client, message):
-        video_url = message.text.strip()
-        await log_download_request(app, message, video_url)
-        # Simulate download process and respond
-        await message.reply("🔄 Downloading video...")
-        # Simulate sending download completion log
-        await log_download_complete(app, message)
-        await message.reply("✅ Video downloaded successfully!")
-
-# Required Bot Credentials
-API_ID = int(os.getenv("API_ID", "22141398"))
-API_HASH = os.getenv("API_HASH", "0c8f8bd171e05e42d6f6e5a6f4305389")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8105194942:AAFzL74g4y3EMJdouoVUtRig4SP_1eZk_xs")
-
 # Initialize bot
 app = Client("YouTubeDownloader", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-
-log_bot_start_on_init(app)
-log_download_request_on_message(app)
 
 # Flask Web Server for Deployment Stability
 flask_app = Flask(__name__)
@@ -108,7 +46,6 @@ def run_web():
 
 # Start Flask in a separate thread
 threading.Thread(target=run_web, daemon=True).start()
-
 # for bot to work 24×7
 @flask_app.route('/keepalive')
 def keepalive():
@@ -141,7 +78,10 @@ Opened at **{current_time}**
     ])
 
     await message.reply_text(start_text, reply_markup=keyboard, disable_web_page_preview=True)
-
+user = message.from_user
+bot_name = "Fᴛᴍ TᴜʙᴇFᴇᴛᴄʜ"  # Set your bot’s name
+log_message = f"✅ **Bot Started**\n\n🤖 Bot: {bot_name}\n👤 User: {user.first_name} (@{user.username})\n🆔 ID: {user.id}"
+await send_log_to_channel(client, log_message)
 
 # Fetch available qualities using `yt-dlp`
 @app.on_message(filters.text & filters.regex(r"(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.?be)\/.+"))
@@ -166,7 +106,8 @@ async def fetch_qualities(client, message):
 
         keyboard = InlineKeyboardMarkup(buttons)
         await message.reply_text(f"🎬 **{info.get('title')}**\n\nSelect a quality:", reply_markup=keyboard)
-
+log_message = f"🔗 **YouTube URL Received**\n\n👤 User: {message.from_user.first_name} (@{message.from_user.username})\n🆔 ID: {message.from_user.id}\n🎥 URL: {youtube_url}"
+await send_log_to_channel(client, log_message)
     except Exception as e:
         await message.reply_text(f"❌ `yt-dlp` failed: {str(e)}")
 
@@ -194,12 +135,17 @@ async def download_ytdlp(client, callback_query):
             file_path = ydl.prepare_filename(info)
 
         await callback_query.message.reply_text("📥 Downloading... Please wait.")
+        log_message = f"⏳ **Download Started**\n\n👤 User: {message.from_user.first_name} (@{message.from_user.username})\n🆔 ID: {message.from_user.id}\n🎥 URL: {youtube_url}\n📥 Quality: {selected_quality}"
+       await send_log_to_channel(client, log_message)
         await callback_query.message.reply_video(video=file_path, caption="✅ Download Complete!")
-        os.remove(file_path)
+        os.remove(file_path) 
+        log_message = f"✅ **Download Completed**\n\n👤 User: {message.from_user.first_name} (@{message.from_user.username})\n🆔 ID: {message.from_user.id}\n🎥 URL: {youtube_url}\n📂 File Sent Successfully"
+await send_log_to_channel(client, log_message)
 
     except Exception as e:
         await callback_query.message.reply_text(f"❌ `yt-dlp` failed: {str(e)}")
-
+        log_message = f"❌ **Download Failed**\n\n👤 User: {message.from_user.first_name} (@{message.from_user.username})\n🆔 ID: {message.from_user.id}\n🎥 URL: {youtube_url}\n⚠️ Error: {str(error_message)}"
+await send_log_to_channel(client, log_message)
 
 if __name__ == "__main__":
     app.run()
