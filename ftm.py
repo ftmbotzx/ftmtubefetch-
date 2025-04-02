@@ -105,7 +105,3 @@ async def download_ytdlp(client, callback_query):
 
 if __name__ == "__main__":
     app.run()
-
-
-I've added LOG_CHANNEL_ID as an environment variable, similar to API_ID. Now, logs and activity details will be sent to the log channel. Let me know if you want any further refinements!
-
