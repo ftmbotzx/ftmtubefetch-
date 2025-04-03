@@ -33,6 +33,59 @@ def run_web():
 # Start Flask in a separate thread
 threading.Thread(target=run_web, daemon=True).start()
 
+# Store links to prevent losing them
+youtube_links = {}
+
+# Custom start message
+@app.on_message(filters.command("start"))
+async def start(client, message):
+    user_name = message.from_user.first_name
+    user_id = message.from_user.id
+    current_time = datetime.datetime.now().strftime("%H:%M %p")
+
+    start_text = f"""
+ʜᴇʏ {user_name}, `{user_id}`, Good welcome as `{current_time}` 🌤️ 👋  
+
+ɪ ᴀᴍ ᴠᴇʀʏ ᴀɴᴅ ᴍᴏsᴛ ᴘᴏᴡᴇʀꜰᴜʟ 🎥 YᴏᴜTᴜʙᴇ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ ʙᴏᴛ ɴᴀᴍᴇᴅ ᴀs ⚡ **ғᴛᴍ ᴛᴜʙᴇғᴇᴛᴄʜ** ᴛɪʟʟ ɴᴏᴡ ᴄʀᴇᴀᴛᴇᴅ ʙʏ **Fᴛᴍ Dᴇᴠᴇʟᴏᴘᴇʀᴢ** 🚀  
+Opened at **{current_time}**  
+
+🌿 **ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ:** [Fᴛᴍ Dᴇᴠᴇʟᴏᴘᴇʀᴢ](https://t.me/ftmdeveloperz)
+    """
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📢 Updates", url="https://t.me/ftmbotzx")],
+        [InlineKeyboardButton("💬 Support", url="https://t.me/ftmbotzx_support")],
+        [InlineKeyboardButton("👨‍💻 Developer", url="https://t.me/ftmdeveloperz")],
+        [InlineKeyboardButton("👑 Owner", url="https://t.me/ftmdeveloperz")]
+    ])
+
+    await message.reply_text(start_text, reply_markup=keyboard, disable_web_page_preview=True)
+
+# Fetch available qualities using `yt-dlp`
+@app.on_message(filters.text & filters.regex(r"(https?:\/\/)?(www\.|m\.)?(youtube\.com|youtu\.?be)\/.+"))
+async def fetch_qualities(client, message):
+    url = message.text
+    youtube_links[message.chat.id] = url  # Save the link
+
+    try:
+        ydl_opts = {"quiet": True, "cookiefile": "cookies.txt"}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            formats = info.get("formats", [])
+
+        buttons = []
+        for fmt in formats:
+            if fmt.get("ext") == "mp4" and fmt.get("height"):
+                res = f"{fmt.get('height')}p"
+                buttons.append([InlineKeyboardButton(res, callback_data=f"ytdlp_{fmt['format_id']}")])
+
+        buttons.append([InlineKeyboardButton("🔊 Audio Only", callback_data="ytdlp_audio")])
+        keyboard = InlineKeyboardMarkup(buttons)
+        await message.reply_text(f"🎬 **{info.get('title')}**\n\nSelect a quality:", reply_markup=keyboard)
+    
+    except Exception as e:
+        await message.reply_text(f"❌ `yt-dlp` failed: {str(e)}")
+
 # Function to generate a unique filename
 def generate_filename(title, ext):
     timestamp = time.strftime("%Y%m%d%H%M%S")
@@ -67,7 +120,7 @@ async def download_ytdlp(client, callback_query):
         await callback_query.message.reply_text("📥 Downloading... Please wait.")
         await callback_query.message.reply_video(video=file_path, caption="✅ Download Complete!")
         os.remove(file_path)
-
+    
     except Exception as e:
         await callback_query.message.reply_text(f"❌ `yt-dlp` failed: {str(e)}")
 
